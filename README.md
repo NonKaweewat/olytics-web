@@ -38,8 +38,9 @@ cp .env.example .env.local
 ```
 DASHBOARD_USER=admin
 DASHBOARD_PASSWORD=<ตั้งรหัสเอง>
-SESSION_SECRET=<พิมพ์ข้อความสุ่มยาวๆ>
 ```
+
+(`SESSION_SECRET` ไม่ต้องตั้ง — เว็บสุ่มกุญแจเองทุกครั้งที่เปิด แค่ปิดเปิดเว็บใหม่แล้วต้อง login ใหม่)
 
 แล้วรัน:
 

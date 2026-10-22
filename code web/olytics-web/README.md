@@ -23,7 +23,7 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # แล้วตั้ง DASHBOARD_PASSWORD กับ SESSION_SECRET
+cp .env.example .env.local   # แล้วตั้ง DASHBOARD_PASSWORD
 npm run dev
 ```
 

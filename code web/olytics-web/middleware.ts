@@ -17,6 +17,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
+  // Node runtime (not Edge) so it shares the generated session key with the
+  // route handlers — see lib/auth.ts.
+  runtime: "nodejs",
   // Everything except login, its API, health check and static assets.
   matcher: ["/((?!login|api/login|api/health|_next/static|_next/image|favicon.ico).*)"],
 };

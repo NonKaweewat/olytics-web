@@ -29,7 +29,8 @@
 
 - โค้ดเว็บอยู่ที่ `code web/olytics-web/`
 - `DATA_SOURCE=mock` (ค่าเริ่มต้น) ใช้ข้อมูลจำลอง → ทำเว็บได้เลยโดยไม่ต้องรอข้อมูลขึ้น AWS; พอเพื่อนโหลดเสร็จเปลี่ยนเป็น `DATA_SOURCE=redshift`
-- Login แบบง่าย: user/pass จาก env (`DASHBOARD_USER`, `DASHBOARD_PASSWORD`) + cookie ที่ sign ด้วย `SESSION_SECRET` (ไม่ต้องใช้ IAM เพราะ Learner Lab สร้าง user ไม่ได้)
+- Login แบบง่าย: user/pass จาก env (`DASHBOARD_USER`, `DASHBOARD_PASSWORD`) + cookie ที่ sign ด้วย HMAC (ไม่ต้องใช้ IAM เพราะ Learner Lab สร้าง user ไม่ได้)
+  - `SESSION_SECRET` ไม่บังคับ: ไม่ตั้ง = สุ่มกุญแจใหม่ทุกครั้งที่ server เปิด (restart แล้วต้อง login ใหม่ — ทีมโอเคแล้ว). middleware รันแบบ runtime nodejs เพื่อใช้กุญแจร่วมกับ API (เก็บใน globalThis)
 - กราฟใช้ `recharts`
 - Mapping ข้อมูล → กราฟ (lib/queries.ts):
   - Revenue / Orders / Freight / หมวดสินค้า / รายเดือน → `fact_order_item` (revenue = SUM(price))
@@ -89,3 +90,4 @@
 - 2026-10-20: Phase 4 เสร็จ — build ผ่าน, ทดสอบทุกหน้าใน browser (mock), filter/logout/redirect ใช้ได้, ทดสอบ redshift mode ต่อไม่ได้ → ขึ้น error state ถูกต้อง, SQL guard ใน Query Lab ทำงาน. README + deploy/ec2-setup.sh เขียนแล้ว
 - **สถานะตอนนี้: เว็บพร้อม รอ Phase 5 (ข้อมูลจากเพื่อน)** — รัน local: cd "code web/olytics-web" && npm run dev (login ดูใน .env.local)
 - 2026-10-20: ได้ ER diagram ใหม่ → เขียน lib/queries.ts ใหม่ตาม fact_order / fact_order_item / fact_review / fact_payment, Query Lab presets ใหม่ (เพิ่ม Payment methods), Delivery Status เหลือ On time/Late. build ผ่าน, ทดสอบ mock ผ่าน (ยังไม่ได้ทดสอบกับ Redshift จริง)
+- 2026-10-23: SESSION_SECRET ไม่บังคับแล้ว (สุ่มเองตอนเปิด server) — ทดสอบ production: login ได้, restart แล้วต้อง login ใหม่, ตั้งค่าเองแล้ว login ไม่หลุด

@@ -1,10 +1,20 @@
-// Minimal signed-cookie session. Uses Web Crypto so it works in both the
-// Edge middleware and Node route handlers.
+// Minimal signed-cookie session, signed with HMAC via Web Crypto.
 export const SESSION_COOKIE = "olytics_session";
 const MAX_AGE_SEC = 60 * 60 * 8;
 
+// SESSION_SECRET is optional. When unset, a random key is generated once per
+// server process, so everyone has to log in again after a restart. It lives on
+// globalThis so the middleware and route handlers (separate bundles, same Node
+// process — see middleware.ts runtime) share the same key.
+const g = globalThis as { __olyticsSessionSecret?: string };
+
 function secret(): string {
-  return process.env.SESSION_SECRET || "dev-only-insecure-secret";
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (!g.__olyticsSessionSecret) {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    g.__olyticsSessionSecret = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return g.__olyticsSessionSecret;
 }
 
 async function hmac(data: string): Promise<string> {
