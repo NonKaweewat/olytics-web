@@ -8,6 +8,7 @@
 |---|---|
 | `code web/olytics-web/` | **ตัวเว็บ Dashboard** (Next.js + Node.js) — รายละเอียดใน [README ของเว็บ](code%20web/olytics-web/README.md) |
 | `diagram/` | AWS Architecture Diagram |
+| `er diagram/` | ER Diagram ของ Data Warehouse (fact / dim tables ใน Redshift) |
 | `web/` | รูป UI prototype |
 | `รายงาน/` | รายงานความก้าวหน้า |
 | `process.md` | Checkpoint ว่างานเว็บทำถึงไหนแล้ว |
