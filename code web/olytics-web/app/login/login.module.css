@@ -1,0 +1,104 @@
+/* Dusk lake + mountain backdrop drawn with gradients (no image asset needed). */
+.bg {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  /* sky at dusk fading into the lake */
+  background: linear-gradient(180deg, #1c2a44 0%, #34466a 32%, #9a8378 55%, #3a4c6c 58%, #22324d 75%, #0d1526 100%);
+}
+
+/* the mountain */
+.bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #d9e2ee 0%, #8796ae 14%, #364866 30%, #1e2c45 100%);
+  clip-path: polygon(0 58%, 22% 50%, 40% 33%, 45% 27%, 55% 27%, 60% 33%, 78% 50%, 100% 56%, 100% 58%);
+}
+
+/* mist + reflection on the lake */
+.bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 45% 6% at 30% 52%, rgba(225, 232, 242, 0.45), transparent 70%),
+    radial-gradient(ellipse 40% 5% at 72% 53%, rgba(225, 232, 242, 0.4), transparent 70%),
+    linear-gradient(180deg, transparent 58%, rgba(120, 140, 170, 0.18) 62%, transparent 80%);
+}
+
+.card {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 30px 26px 26px;
+  border-radius: 22px;
+  background: rgba(120, 135, 160, 0.45);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.field {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #1f3550;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #fff;
+}
+
+.field:focus-within {
+  outline: 2px solid #c6f46b;
+}
+
+.error {
+  margin: 0;
+  color: #ffd2d2;
+  font-size: 12px;
+}
+
+.btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: #c6f46b;
+  color: #10200a;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+}
