@@ -19,6 +19,8 @@
 
 ต้องมี Node.js 22 — ถ้า clone มาจาก GitHub ให้ `cd "code web/olytics-web"` ก่อน (ขั้นตอนเต็มอยู่ใน [README หน้าแรกของ repo](../../README.md))
 
+> Windows PowerShell: ใช้ `npm.cmd` แทน `npm` (เช่น `npm.cmd install`, `npm.cmd run dev`)
+
 ```bash
 npm install
 cp .env.example .env.local   # แล้วตั้ง DASHBOARD_PASSWORD กับ SESSION_SECRET

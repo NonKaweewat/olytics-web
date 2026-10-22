@@ -22,10 +22,14 @@
 
 ### ขั้นตอน
 
+> **Windows + PowerShell (Terminal เริ่มต้นของ VS Code):** ให้พิมพ์ `npm.cmd` แทน `npm` ทุกคำสั่ง
+> เพราะ Windows บล็อก `npm` ใน PowerShell (error `running scripts is disabled on this system`)
+> ถ้าใช้ Command Prompt / Git Bash / Mac พิมพ์ `npm` ได้ตามปกติ
+
 ```bash
 git clone https://github.com/NonKaweewat/olytics-web.git
 cd "olytics-web/code web/olytics-web"
-npm install
+npm.cmd install
 cp .env.example .env.local
 ```
 
@@ -40,11 +44,20 @@ SESSION_SECRET=<พิมพ์ข้อความสุ่มยาวๆ>
 แล้วรัน:
 
 ```bash
-npm run dev
+npm.cmd run dev
 ```
 
 เปิด http://localhost:3000 แล้ว login ด้วย user / password ที่ตั้งไว้ใน `.env.local`
 ปิดเว็บ: กด `Ctrl + C` ใน Terminal
+
+### เปิดเว็บครั้งต่อไป
+
+ไม่ต้อง install ใหม่ — เปิด Terminal ที่โฟลเดอร์ repo แล้ว:
+
+```bash
+cd "code web/olytics-web"
+npm.cmd run dev
+```
 
 > ตอนนี้ค่าเริ่มต้นคือ `DATA_SOURCE=mock` = **ข้อมูลจำลอง** (ตัวเลขไม่ใช่ของจริง ห้ามเอาไปใส่รายงาน)
 > ถ้าจะต่อ Redshift จริง ดูหัวข้อ "ต่อ Redshift จริง" ใน [README ของเว็บ](code%20web/olytics-web/README.md)
@@ -53,9 +66,10 @@ npm run dev
 
 | อาการ | วิธีแก้ |
 |---|---|
-| `npm` ใช้ไม่ได้ | ยังไม่ได้ติดตั้ง Node.js |
+| `npm.ps1 cannot be loaded because running scripts is disabled` | ใช้ `npm.cmd` แทน `npm` หรือเปลี่ยน Terminal เป็น Command Prompt / Git Bash (ลูกศร ˅ ข้างปุ่ม + ใน Terminal) หรือแก้ถาวรด้วย `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| `npm` / `npm.cmd` ใช้ไม่ได้ (`not recognized`) | ยังไม่ได้ติดตั้ง Node.js หรือติดตั้งแล้วแต่ยังไม่ได้ปิดเปิด VS Code ใหม่ |
 | `Could not read package.json` | ยังไม่ได้ `cd` เข้า `code web/olytics-web` |
-| `'next' is not recognized` | ยังไม่ได้ `npm install` |
+| `'next' is not recognized` | ยังไม่ได้ `npm.cmd install` |
 | `Port 3000 is in use` | มีเว็บเปิดค้างอยู่ ปิดตัวเก่า หรือเข้าตาม port ที่มันบอก เช่น `localhost:3001` |
 | login ไม่ได้ | ยังไม่ได้สร้าง `.env.local` หรือไม่ได้ตั้ง `DASHBOARD_PASSWORD` |
 
