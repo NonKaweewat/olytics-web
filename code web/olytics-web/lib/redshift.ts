@@ -30,8 +30,7 @@ export async function rsQuery<T = Record<string, unknown>>(sql: string, params: 
   return res.rows as T[];
 }
 
-export function schema(): string {
-  const s = process.env.REDSHIFT_SCHEMA ?? "public";
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(s)) throw new Error("Invalid REDSHIFT_SCHEMA");
-  return s;
+export async function rsColumns(sql: string): Promise<string[]> {
+  const res = await getPool().query(sql);
+  return res.fields.map((f) => f.name);
 }

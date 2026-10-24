@@ -3,26 +3,29 @@ import type { ReactNode } from "react";
 export default function KpiCard({
   label,
   value,
-  delta,
+  metric,
+  sub,
+  subTone = "muted",
   icon,
   tone = "lime",
-  invertDelta = false,
 }: {
   label: string;
   value: string;
-  delta?: string | null;
+  /** Metric id from the design document, e.g. "M01". */
+  metric?: string;
+  sub?: string | null;
+  subTone?: "good" | "bad" | "muted";
   icon: ReactNode;
   tone?: "lime" | "purple";
-  /** For metrics where going down is good, e.g. freight cost. */
-  invertDelta?: boolean;
 }) {
-  const bad = delta ? delta.startsWith("-") !== invertDelta : false;
   return (
     <div className="card kpi">
       <div>
-        <div className="label">{label}</div>
+        <div className="label">
+          {label} {metric && <span className="metric">{metric}</span>}
+        </div>
         <div className="value">{value}</div>
-        {delta && <div className={`delta${bad ? " neg" : ""}`}>{delta}</div>}
+        {sub && <div className={`delta ${subTone}`}>{sub}</div>}
       </div>
       <div className={`icon ${tone}`}>{icon}</div>
     </div>

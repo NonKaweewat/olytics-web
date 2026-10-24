@@ -1,5 +1,5 @@
 import PageHeader from "@/components/PageHeader";
-import { dataSource } from "@/lib/data";
+import { dataSource } from "@/lib/db";
 import { PRESETS } from "@/lib/querylab";
 import QueryLab from "./QueryLab";
 

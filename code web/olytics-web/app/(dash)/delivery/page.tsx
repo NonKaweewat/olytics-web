@@ -1,69 +1,82 @@
-import { DeliveryDonut, DeliveryScatter, ReviewDistBar } from "@/components/Charts";
+import Card from "@/components/Card";
+import { HBar, TrendBar, TrendLine } from "@/components/Charts";
+import DataTable from "@/components/DataTable";
 import ErrorState from "@/components/ErrorState";
-import { IconBulb, IconCheck, IconClock, IconStar, IconTruck } from "@/components/Icons";
+import { IconCheck, IconClock, IconTruck } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
+import KpiNotice from "@/components/KpiNotice";
 import PageHeader from "@/components/PageHeader";
-import { pct } from "@/lib/format";
+import { int, pct } from "@/lib/format";
+import { delivery } from "@/lib/metrics/delivery";
+import { ignoredNote, trendNote } from "@/lib/notes";
 import { loadPage, type SearchParams } from "@/lib/page-data";
-import type { DeliveryReviewPoint } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Compare avg review of fast (<=10 days) vs slow (>20 days) deliveries. */
-function insight(points: DeliveryReviewPoint[]): string {
-  const avg = (ps: DeliveryReviewPoint[]) => {
-    const n = ps.reduce((a, p) => a + (p.orders || 1), 0);
-    return n ? ps.reduce((a, p) => a + p.score * (p.orders || 1), 0) / n : NaN;
-  };
-  const fast = avg(points.filter((p) => p.days <= 10));
-  const slow = avg(points.filter((p) => p.days > 20));
-  if (Number.isNaN(fast) || Number.isNaN(slow)) return "Not enough data to compare delivery speed and reviews.";
-  if (fast - slow > 0.1) {
-    return `Longer delivery times are associated with lower review scores — orders delivered within 10 days average ${fast.toFixed(2)}★ vs ${slow.toFixed(2)}★ for orders taking over 20 days.`;
-  }
-  return `Delivery time shows little effect on reviews for this selection (${fast.toFixed(2)}★ fast vs ${slow.toFixed(2)}★ slow).`;
-}
-
+/** Logistics — BR08 BR09. */
 export default async function DeliveryPage({ searchParams }: { searchParams: SearchParams }) {
-  const { data, options, error } = await loadPage(searchParams);
+  const { data, options, filters, error } = await loadPage(searchParams, delivery);
   const header = (
-    <PageHeader title="Delivery & Review Analysis" subtitle="Relationship between delivery time and customer review scores" options={options} />
+    <PageHeader
+      title="Delivery"
+      subtitle="อัตราจัดส่งถึงลูกค้าล่าช้า และระยะเวลาจัดส่งเฉลี่ย (นับเฉพาะคำสั่งซื้อที่ส่งถึงแล้ว)"
+      options={options}
+      fields={["year", "month", "region", "state"]}
+      stateLabel="All Customer States"
+    />
   );
   if (!data) return <>{header}<ErrorState message={error ?? "Unknown error"} /></>;
 
-  const k = data.kpis;
+  const ig = data.ignored;
   return (
     <>
       {header}
+      <KpiNotice ignored={ig.all} />
       <section className="grid kpis">
-        <KpiCard label="Avg. Delivery Time" value={`${k.avgDeliveryDays.toFixed(1)} days`} icon={<IconClock />} />
-        <KpiCard label="Avg. Review Score" value={`${k.avgReview.toFixed(2)} / 5`} icon={<IconStar />} tone="purple" />
-        <KpiCard label="On-Time Delivery" value={pct(k.onTimePct)} icon={<IconCheck />} />
-        <KpiCard label="Late Deliveries" value={pct(k.latePct)} icon={<IconTruck />} tone="purple" />
+        <KpiCard label="Avg Delivery Time" value={data.avgDays === null ? "—" : `${data.avgDays.toFixed(1)} days`} sub="จากวันสั่งซื้อถึงวันลูกค้าได้รับ" icon={<IconClock />} />
+        <KpiCard label="Late Delivery Rate" value={data.latePct === null ? "—" : pct(data.latePct)} sub={`${int(data.lateOrders)} late orders`} icon={<IconTruck />} tone="purple" />
+        <KpiCard label="Delivered Orders" value={int(data.delivered)} icon={<IconCheck />} />
+        <KpiCard label="Longest Delivery" value={data.maxDays === null ? "—" : `${data.maxDays.toFixed(1)} days`} icon={<IconClock />} tone="purple" />
       </section>
-      <section className="grid row-3-2">
-        <div className="card">
-          <h3>Delivery Time vs Review Score</h3>
-          <DeliveryScatter data={data.deliveryVsReview} tall />
-        </div>
-        <div className="stack">
-          <div className="card">
-            <h3>Review Score Distribution</h3>
-            <ReviewDistBar data={data.reviewDistribution} />
-          </div>
-          <div className="card">
-            <h3>Delivery Status</h3>
-            <DeliveryDonut data={data.deliveryStatus} />
-          </div>
-        </div>
+      <section className="grid row-2">
+        <Card title="Monthly Late Delivery Rate" note={trendNote(filters)} warn={ignoredNote(ig.trend)}>
+          <TrendBar data={data.monthly.map((m) => ({ label: m.label, value: m.latePct }))} fmt="pct" name="Late" />
+        </Card>
+        <Card title="Monthly Avg Delivery Time" note={trendNote(filters)} warn={ignoredNote(ig.trend)}>
+          <TrendLine data={data.monthly.map((m) => ({ label: m.label, value: m.avgDays }))} fmt="days" name="Avg days" />
+        </Card>
       </section>
-      <section className="card insight">
-        <div className="icon lime"><IconBulb /></div>
-        <div>
-          <strong>Key Insight</strong>
-          <span>{insight(data.deliveryVsReview)}</span>
-        </div>
+      <section className="grid row-2">
+        <Card
+          title="Avg Delivery Time by Customer State"
+          note="10 รัฐที่มีคำสั่งซื้อที่ส่งถึงแล้วมากที่สุด · ค่าเฉลี่ยรวมหลายเดือน = วันจัดส่งรวม / จำนวนคำสั่งซื้อที่ส่งถึง"
+          warn={ignoredNote(ig.days)}
+        >
+          <HBar data={data.byState.slice(0, 10).map((s) => ({ label: s.state, value: s.avgDays }))} fmt="days" name="Avg days" />
+        </Card>
+        <Card title="Late Rate by Customer State" note="10 รัฐที่มีคำสั่งซื้อที่ส่งถึงแล้วมากที่สุด" warn={ignoredNote(ig.late)}>
+          <HBar data={data.byState.slice(0, 10).map((s) => ({ label: s.state, value: s.latePct }))} fmt="pct" name="Late" />
+        </Card>
       </section>
+      <section className="grid row-2">
+        <Card title="Late Rate by Region" note="ภาคจับกลุ่มจากรัฐของลูกค้า" warn={ignoredNote(ig.late)}>
+          <HBar data={data.byRegion.map((r) => ({ label: r.label, value: r.latePct }))} fmt="pct" name="Late" categories />
+        </Card>
+        <Card title="Avg Delivery Time by Region" note="ภาคจับกลุ่มจากรัฐของลูกค้า" warn={ignoredNote(ig.days)}>
+          <HBar data={data.byRegion.map((r) => ({ label: r.label, value: r.avgDays }))} fmt="days" name="Avg days" categories />
+        </Card>
+      </section>
+      <Card title="By Customer State" warn={ignoredNote(ig.all)}>
+        <DataTable
+          columns={[
+            { key: "state", label: "State" },
+            { key: "delivered", label: "Delivered orders", fmt: "int" },
+            { key: "avgDays", label: "Avg days", fmt: "days" },
+            { key: "latePct", label: "Late", fmt: "pct", highlight: true },
+          ]}
+          rows={data.byState}
+        />
+      </Card>
     </>
   );
 }

@@ -72,8 +72,17 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .kpi { display: flex; justify-content: space-between; align-items: flex-start; }
 .kpi .label { color: #c9d2e3; font-size: 12px; }
 .kpi .value { font-size: 24px; font-weight: 700; margin: 6px 0 4px; letter-spacing: -0.01em; }
-.kpi .delta { font-size: 10.5px; color: var(--lime); }
-.kpi .delta.neg { color: #ffb36b; }
+.kpi .delta { font-size: 10.5px; color: var(--muted); }
+.kpi .delta.good { color: var(--lime); }
+.kpi .delta.bad { color: #ffb36b; }
+.metric {
+  display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 999px; vertical-align: 1px;
+  background: #1a2340; color: #a5b4fc; font-size: 10px; font-weight: 600; letter-spacing: .02em;
+}
+.note { margin: 10px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.who { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; margin-bottom: 4px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); overflow: hidden; }
+.who strong { color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 14px; }
 .icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
 .icon.lime { background: var(--lime); color: var(--lime-ink); }
 .icon.purple { background: var(--purple); color: #fff; }
@@ -120,13 +129,19 @@ table.data td.money { color: var(--lime); text-align: right; }
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .row-2, .row-3-2, .row-2-3 { grid-template-columns: minmax(0, 1fr); }
+  .row-2, .row-3, .row-3-2, .row-2-3 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .shell { flex-direction: column; }
   .sidebar { width: 100%; height: auto; position: static; flex-direction: row; overflow-x: auto; padding: 10px 16px; }
   .brand { flex-direction: row; margin: 0 8px 0 0; }
-  .sidebar .spacer { display: none; }
+  .sidebar .spacer, .sidebar .who { display: none; }
   .main { padding: 16px; }
   .kpis { grid-template-columns: minmax(0, 1fr); }
 }
+.filters select:disabled { opacity: .5; cursor: not-allowed; }
+.notice {
+  margin: -6px 0 14px; padding: 9px 12px; border-radius: 9px; font-size: 12.5px; line-height: 1.45;
+  background: #1a2340; border: 1px solid #2c3a66; color: #c7d2fe;
+}
+.warn { margin: 10px 0 0; color: #ffb36b; font-size: 11.5px; line-height: 1.45; }

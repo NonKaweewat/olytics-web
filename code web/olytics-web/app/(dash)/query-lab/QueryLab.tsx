@@ -53,7 +53,7 @@ export default function QueryLab({ presets, mock }: { presets: { id: string; lab
       {mock && (
         <div className="card">
           <span className="badge info">MOCK MODE</span>{" "}
-          <span className="muted">Timings below are simulated. Set DATA_SOURCE=redshift to query AWS for real.</span>
+          <span className="muted">SQL runs for real on the in-memory mock warehouse (same tables as the ER diagram). Athena timing and data scanned are simulated. Set DATA_SOURCE=redshift to query AWS.</span>
         </div>
       )}
       <div className="card">

@@ -5,53 +5,46 @@ import {
   GetQueryResultsCommand,
   StartQueryExecutionCommand,
 } from "@aws-sdk/client-athena";
-import { dataSource } from "./data";
-import { rsQuery, schema } from "./redshift";
+import { dataSource, query, schema } from "./db";
 import type { QueryRunResult } from "./types";
 
 // UC-03: run the same SQL on Athena (reads S3 Curated Zone via Glue Data Catalog)
 // and on Redshift, then compare elapsed time / data scanned.
 // Write `{db}.table` in SQL — it is replaced with ATHENA_DATABASE or REDSHIFT_SCHEMA.
 
+// Presets read the data team's KPI views (KPI.txt), so both engines answer the
+// same business question; Athena needs the same views in the Glue Data Catalog.
 export const PRESETS: { id: string; label: string; sql: string }[] = [
   {
-    id: "monthly",
-    label: "Monthly revenue",
-    sql: `SELECT d.year_number, d.month_number, SUM(i.price) AS revenue, COUNT(DISTINCT i.order_id) AS orders
-FROM {db}.fact_order_item i
-JOIN {db}.dim_date d ON i.purchase_date_key = d.date_key
-GROUP BY d.year_number, d.month_number
-ORDER BY d.year_number, d.month_number`,
+    id: "br01",
+    label: "BR01 Monthly sales",
+    sql: `SELECT year_number, month_number, total_sales, total_orders, mom_growth_pct
+FROM {db}.v_br01_monthly_sales
+ORDER BY year_number, month_number`,
   },
   {
-    id: "categories",
-    label: "Top categories",
-    sql: `SELECT p.category_english, SUM(i.price) AS revenue, SUM(i.item_count) AS items
-FROM {db}.fact_order_item i
-JOIN {db}.dim_product p ON i.product_key = p.product_key
-GROUP BY p.category_english
-ORDER BY revenue DESC
+    id: "br04",
+    label: "BR04 Categories",
+    sql: `SELECT category_name, total_sales, total_items, total_orders, avg_item_price
+FROM {db}.v_br04_category_performance
+ORDER BY total_sales DESC
 LIMIT 10`,
   },
   {
-    id: "delivery",
-    label: "Delivery days vs review",
-    sql: `SELECT ROUND(o.delivery_days) AS delivery_days, AVG(CAST(rs.review_score AS DOUBLE PRECISION)) AS avg_review, COUNT(*) AS n
-FROM {db}.fact_order o
-JOIN {db}.fact_review r ON r.order_id = o.order_id
-JOIN {db}.dim_review_score rs ON r.review_score_key = rs.review_score_key
-WHERE o.delivery_days IS NOT NULL
-GROUP BY ROUND(o.delivery_days)
-ORDER BY 1`,
+    id: "br08",
+    label: "BR08 Late delivery by state",
+    sql: `SELECT customer_state, SUM(total_delivered_orders) AS delivered, SUM(late_orders) AS late,
+       ROUND(100.0 * SUM(late_orders) / NULLIF(SUM(total_delivered_orders), 0), 2) AS late_rate_pct
+FROM {db}.v_br08_late_delivery
+GROUP BY customer_state
+ORDER BY delivered DESC`,
   },
   {
-    id: "payments",
-    label: "Payment methods",
-    sql: `SELECT pm.payment_type, COUNT(*) AS payments, SUM(fp.payment_value) AS total_value
-FROM {db}.fact_payment fp
-JOIN {db}.dim_payment_method pm ON fp.payment_method_key = pm.payment_method_key
-GROUP BY pm.payment_type
-ORDER BY total_value DESC`,
+    id: "br03",
+    label: "BR03 Payments",
+    sql: `SELECT payment_type, payment_records, total_payment, payment_percentage
+FROM {db}.v_br03_payment_distribution
+ORDER BY total_payment DESC`,
   },
 ];
 
@@ -71,15 +64,17 @@ async function runRedshift(sql: string): Promise<QueryRunResult> {
   const q = sql.replaceAll("{db}", schema());
   const start = performance.now();
   try {
-    const rows = await rsQuery(q);
+    const rows = await query(q);
     const columns = rows[0] ? Object.keys(rows[0]) : [];
+    // PGlite returns int8 as BigInt, which JSON cannot serialise
+    const cell = (v: unknown) => (typeof v === "bigint" ? Number(v) : v);
     return {
       engine: "redshift",
       ok: true,
       elapsedMs: performance.now() - start,
       rowCount: rows.length,
       columns,
-      rows: rows.slice(0, MAX_ROWS).map((r) => columns.map((c) => r[c])),
+      rows: rows.slice(0, MAX_ROWS).map((r) => columns.map((c) => cell(r[c]))),
     };
   } catch (e) {
     return { engine: "redshift", ok: false, elapsedMs: performance.now() - start, error: (e as Error).message };
@@ -135,21 +130,24 @@ async function runAthena(sql: string): Promise<QueryRunResult> {
   }
 }
 
-function mockRun(engine: "athena" | "redshift", sql: string): QueryRunResult {
-  const base = sql.length;
-  return {
-    engine,
-    ok: true,
-    elapsedMs: engine === "athena" ? 900 + (base % 700) : 120 + (base % 180),
-    dataScannedBytes: engine === "athena" ? 4_200_000 + base * 1000 : undefined,
-    rowCount: 3,
-    columns: ["note"],
-    rows: [["mock mode — set DATA_SOURCE=redshift"], ["to run real queries"], [engine]],
+/**
+ * Mock mode: the SQL really runs on the in-memory mock warehouse (so it is
+ * checked), but there is no Athena — its timing and data scanned are simulated.
+ */
+async function mockRun(sql: string): Promise<QueryRunResult[]> {
+  const real = await runRedshift(sql);
+  const athena: QueryRunResult = {
+    ...real,
+    engine: "athena",
+    simulated: true,
+    elapsedMs: real.ok ? 800 + real.elapsedMs * 4 : real.elapsedMs,
+    dataScannedBytes: real.ok ? 3_500_000 + sql.length * 900 : undefined,
   };
+  return [athena, { ...real, simulated: true }];
 }
 
 export async function runBoth(sql: string): Promise<QueryRunResult[]> {
-  if (dataSource() === "mock") return [mockRun("athena", sql), mockRun("redshift", sql)];
+  if (dataSource() === "mock") return mockRun(sql);
   // Sequential, so the two engines do not compete for the network/CPU on EC2.
   const athena = await runAthena(sql);
   const redshift = await runRedshift(sql);
