@@ -33,33 +33,43 @@ export default function Sidebar({ pages, user, roleLabel }: { pages: PageId[]; u
   }
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" suppressHydrationWarning>
       <div className="brand">
-        <Logo size={36} />
-        <span>Olytics</span>
+        <Logo size={32} />
+        <div className="brand-info">
+          <span className="brand-name">Olytics</span>
+          <span className="brand-sub">Analytics</span>
+        </div>
       </div>
-      {main.map((id) => {
-        const Icon = ICONS[id];
-        const { href, label } = PAGES[id];
-        return (
-          <Link key={id} href={href + qs} className={`nav-item${pathname === href ? " active" : ""}`}>
-            <Icon /> <span>{label}</span>
+      <nav className="nav-list">
+        {main.map((id) => {
+          const Icon = ICONS[id];
+          const { href, label } = PAGES[id];
+          const isActive = pathname === href;
+          return (
+            <Link key={id} href={href + qs} className={`nav-item${isActive ? " active" : ""}`}>
+              <Icon /> <span>{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="sidebar-footer">
+        <div className="user-profile" title={`${user} · ${roleLabel}`}>
+          <div className="user-avatar">{user ? user.charAt(0).toUpperCase() : "U"}</div>
+          <div className="user-info">
+            <strong className="user-name">{user}</strong>
+            <span className="user-role">{roleLabel}</span>
+          </div>
+        </div>
+        {pages.includes("settings") && (
+          <Link href="/settings" className={`nav-item${pathname === "/settings" ? " active" : ""}`}>
+            <IconGear /> <span>Settings</span>
           </Link>
-        );
-      })}
-      <div className="spacer" />
-      <div className="who" title={`${user} · ${roleLabel}`}>
-        <strong>{user}</strong>
-        <span>{roleLabel}</span>
+        )}
+        <button className="nav-item logout" onClick={logout} type="button">
+          <IconLogout /> <span>Logout</span>
+        </button>
       </div>
-      {pages.includes("settings") && (
-        <Link href="/settings" className={`nav-item${pathname === "/settings" ? " active" : ""}`}>
-          <IconGear /> <span>Settings</span>
-        </Link>
-      )}
-      <button className="nav-item logout" onClick={logout}>
-        <IconLogout /> <span>Logout</span>
-      </button>
     </aside>
   );
 }

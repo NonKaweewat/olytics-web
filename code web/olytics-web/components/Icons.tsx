@@ -35,7 +35,7 @@ export function Logo({ size = 40 }: { size?: number }) {
   const r = 15;
   const c = 2 * Math.PI * r;
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
       <circle cx="20" cy="20" r={r} fill="none" stroke="#1d2b52" strokeWidth="7" />
       <circle
         cx="20" cy="20" r={r} fill="none" stroke="#4f8de0" strokeWidth="7"
