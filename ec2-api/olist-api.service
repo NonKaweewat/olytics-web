@@ -1,0 +1,25 @@
+[Unit]
+Description=Olist internal KPI API
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/olist-dashboard
+ExecStart=/usr/bin/node /home/ec2-user/olist-dashboard/internal-api/start-api.js
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -10,12 +10,15 @@ export async function filterOptions(): Promise<FilterOptions> {
     query(`SELECT DISTINCT year_number AS y FROM ${view("v_br01_monthly_sales")} ORDER BY 1 DESC`),
     query(
       `SELECT DISTINCT category_name AS c FROM ${view("v_br14_monthly_category_sales")}
-       WHERE category_name IS NOT NULL ORDER BY 1`,
+       WHERE category_name IS NOT NULL AND TRIM(category_name) <> '' ORDER BY 1`,
     ),
     // customer states and seller states (the sellers page filters by seller state)
     query(
-      `SELECT customer_state AS s FROM ${view("v_br08_late_delivery")} WHERE customer_state IS NOT NULL
-       UNION SELECT seller_state FROM ${view("v_br07_sellers_without_revenue")} WHERE seller_state IS NOT NULL ORDER BY 1`,
+      `SELECT s FROM (
+         SELECT customer_state AS s FROM ${view("v_br08_late_delivery")} WHERE customer_state IS NOT NULL
+         UNION
+         SELECT seller_state AS s FROM ${view("v_br07_sellers_without_revenue")} WHERE seller_state IS NOT NULL
+       ) AS states ORDER BY 1`,
     ),
   ]);
   return {

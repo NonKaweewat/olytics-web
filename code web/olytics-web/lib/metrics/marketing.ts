@@ -18,7 +18,7 @@ export async function marketing(f: Filters): Promise<MarketingData> {
     scope("v_br14_monthly_category_sales", f, { use: ["year", "category", "region", "state"] }),
   ]);
 
-  const [[kpi], states, cities, regions, monthly, cats] = await Promise.all([
+  const [[kpi], states, stateSales, cities, regions, regionCustomers, monthly, cats, [categoryKpi]] = await Promise.all([
     query(
       `SELECT SUM(total_customers) AS customers, SUM(total_orders) AS orders, SUM(total_sales) AS sales,
               COUNT(DISTINCT customer_state || '|' || customer_city) AS cities
@@ -26,9 +26,16 @@ export async function marketing(f: Filters): Promise<MarketingData> {
       g.params,
     ),
     query(
-      `SELECT customer_state, SUM(total_customers) AS customers, SUM(total_sales) AS sales
-       FROM ${g.from} ${g.where} GROUP BY customer_state ORDER BY sales DESC NULLS LAST`,
+      `SELECT customer_state, SUM(total_customers) AS customers
+       FROM ${g.from} ${g.where} GROUP BY customer_state ORDER BY customers DESC NULLS LAST`,
       g.params,
+    ),
+    // Sales come from BR14 so the category selector affects every revenue view
+    // on this page. Customer geography (BR13) has no category dimension.
+    query(
+      `SELECT customer_state, SUM(total_sales) AS sales
+       FROM ${c.from} ${c.where} GROUP BY customer_state`,
+      c.params,
     ),
     query(
       `SELECT customer_city, customer_state, SUM(total_customers) AS customers, SUM(total_orders) AS orders, SUM(total_sales) AS sales
@@ -36,29 +43,44 @@ export async function marketing(f: Filters): Promise<MarketingData> {
       g.params,
     ),
     query(
-      `SELECT ${regionCase("customer_state")} AS region, SUM(total_customers) AS customers, SUM(total_sales) AS sales
-       FROM ${g.from} ${g.where} GROUP BY 1 ORDER BY 3 DESC NULLS LAST`,
+      `SELECT ${regionCase("customer_state")} AS region, SUM(total_sales) AS sales
+       FROM ${c.from} ${c.where} GROUP BY 1 ORDER BY 2 DESC NULLS LAST`,
+      c.params,
+    ),
+    query(
+      `SELECT ${regionCase("customer_state")} AS region, SUM(total_customers) AS customers
+       FROM ${g.from} ${g.where} GROUP BY 1`,
       g.params,
     ),
     query(`SELECT year_number, month_number, SUM(total_sales) AS sales FROM ${ct.from} ${ct.where} GROUP BY 1, 2 ORDER BY 1, 2`, ct.params),
     query(
-      `SELECT category_name, SUM(total_sales) AS sales FROM ${c.from} ${c.where} GROUP BY category_name ORDER BY 2 DESC NULLS LAST LIMIT 5`,
+      `SELECT category_name, SUM(total_sales) AS sales FROM ${c.from}
+       ${c.where ? `${c.where} AND` : "WHERE"} category_name IS NOT NULL AND TRIM(category_name) <> ''
+       GROUP BY category_name ORDER BY 2 DESC NULLS LAST LIMIT 5`,
       c.params,
     ),
+    query(`SELECT SUM(total_sales) AS sales FROM ${c.from} ${c.where}`, c.params),
   ]);
+
+  const salesByState = new Map(stateSales.map((x) => [String(x.customer_state), num(x.sales)]));
+  const customersByRegion = new Map(regionCustomers.map((x) => [String(x.region), num(x.customers)]));
 
   return {
     customers: num(kpi?.customers),
-    revenue: num(kpi?.sales),
+    revenue: num(categoryKpi?.sales),
     orders: num(kpi?.orders),
     cities: num(kpi?.cities),
-    byState: states.map((x) => ({ state: String(x.customer_state), customers: num(x.customers), revenue: num(x.sales) })),
+    byState: states.map((x) => ({
+      state: String(x.customer_state),
+      customers: num(x.customers),
+      revenue: salesByState.get(String(x.customer_state)) ?? 0,
+    })),
     byRegion: regions
       .filter((x) => x.region !== "unknown")
       .map((x) => ({
         region: x.region as RegionId,
         label: regionShort(x.region as RegionId),
-        customers: num(x.customers),
+        customers: customersByRegion.get(String(x.region)) ?? 0,
         revenue: num(x.sales),
       })),
     topCities: cities.map((x) => ({

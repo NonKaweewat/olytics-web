@@ -4,7 +4,6 @@ import DataTable from "@/components/DataTable";
 import ErrorState from "@/components/ErrorState";
 import { IconBag, IconDollar, IconPin, IconUsers } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
-import KpiNotice from "@/components/KpiNotice";
 import PageHeader from "@/components/PageHeader";
 import { brl, int } from "@/lib/format";
 import { marketing } from "@/lib/metrics/marketing";
@@ -33,7 +32,6 @@ export default async function MarketingPage({ searchParams }: { searchParams: Se
   return (
     <>
       {header}
-      <KpiNotice ignored={data.ignored.geo} />
       <section className="grid kpis">
         <KpiCard label="Customers" value={int(data.customers)} sub="รวมรายเมือง อาจนับลูกค้าที่ย้ายเมืองซ้ำ" icon={<IconUsers />} />
         <KpiCard label="Product Revenue" value={brl(data.revenue)} icon={<IconDollar />} tone="purple" />
