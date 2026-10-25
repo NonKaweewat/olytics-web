@@ -127,10 +127,9 @@ export type MarketingData = {
 };
 
 export type QueryRunResult = {
-  engine: "athena" | "redshift";
+  engine: "redshift";
   ok: boolean;
   elapsedMs: number;
-  dataScannedBytes?: number;
   rowCount?: number;
   columns?: string[];
   rows?: unknown[][];

@@ -1,7 +1,7 @@
 import "server-only";
 import { num, numOrNull, query } from "../db";
 import { regionShort, type RegionId } from "../regions";
-import { scope } from "../scope";
+import { queryTotals, scope } from "../scope";
 import { monthLabel, regionCase } from "../sql";
 import type { Filters, MarketingData } from "../types";
 
@@ -12,23 +12,29 @@ import type { Filters, MarketingData } from "../types";
  * can count a customer more than once (M15 note in the design document).
  */
 export async function marketing(f: Filters): Promise<MarketingData> {
-  const [g, c, ct] = await Promise.all([
+  const [g, c, ct, customerStates] = await Promise.all([
     scope("v_br13_customer_geography", f),
     scope("v_br14_monthly_category_sales", f),
     scope("v_br14_monthly_category_sales", f, { use: ["year", "category", "region", "state"] }),
+    // BR11 holds distinct customer_unique_id counts. BR13 is city/month grain
+    // and summing it would count the same customer more than once.
+    scope("v_br11_repeat_customers", f, { use: ["year", "region", "state"], totals: ["year"] }),
   ]);
 
-  const [[kpi], states, stateSales, cities, regions, regionCustomers, monthly, cats, [categoryKpi]] = await Promise.all([
+  const [customerTotal, [kpi], states, stateSales, cities, regions, regionCustomers, monthly, cats, [categoryKpi]] = await Promise.all([
+    queryTotals("v_br11_repeat_customers", f, { use: ["year", "region", "state"], totals: ["year", "state"] }, (s) =>
+      `SELECT SUM(total_customers) AS customers FROM ${s.from} ${s.where}`),
     query(
-      `SELECT SUM(total_customers) AS customers, SUM(total_orders) AS orders, SUM(total_sales) AS sales,
+      `SELECT SUM(total_orders) AS orders,
               COUNT(DISTINCT customer_state || '|' || customer_city) AS cities
        FROM ${g.from} ${g.where}`,
       g.params,
     ),
     query(
       `SELECT customer_state, SUM(total_customers) AS customers
-       FROM ${g.from} ${g.where} GROUP BY customer_state ORDER BY customers DESC NULLS LAST`,
-      g.params,
+       FROM ${customerStates.from} ${customerStates.where} AND customer_state IS NOT NULL
+       GROUP BY customer_state ORDER BY customers DESC NULLS LAST`,
+      customerStates.params,
     ),
     // Sales come from BR14 so the category selector affects every revenue view
     // on this page. Customer geography (BR13) has no category dimension.
@@ -59,16 +65,18 @@ export async function marketing(f: Filters): Promise<MarketingData> {
        GROUP BY category_name ORDER BY 2 DESC NULLS LAST LIMIT 5`,
       c.params,
     ),
-    query(`SELECT SUM(total_sales) AS sales FROM ${c.from} ${c.where}`, c.params),
+    query(`SELECT SUM(total_sales) AS sales, SUM(total_orders) AS orders FROM ${c.from} ${c.where}`, c.params),
   ]);
 
   const salesByState = new Map(stateSales.map((x) => [String(x.customer_state), num(x.sales)]));
   const customersByRegion = new Map(regionCustomers.map((x) => [String(x.region), num(x.customers)]));
 
   return {
-    customers: num(kpi?.customers),
+    customers: num(customerTotal.rows[0]?.customers),
     revenue: num(categoryKpi?.sales),
-    orders: num(kpi?.orders),
+    // BR14 is the category-grain source. With no category selected, use BR13
+    // so orders spanning multiple categories are not counted more than once.
+    orders: f.category ? num(categoryKpi?.orders) : num(kpi?.orders),
     cities: num(kpi?.cities),
     byState: states.map((x) => ({
       state: String(x.customer_state),

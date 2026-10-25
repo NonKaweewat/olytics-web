@@ -10,7 +10,6 @@ export default function QueryLabPage() {
     <>
       <PageHeader
         title="Query Lab"
-        subtitle="Run the same SQL on Amazon Athena (S3 Curated Zone) and Amazon Redshift, then compare speed and cost model"
       />
       <QueryLab presets={PRESETS} mock={dataSource() === "mock"} />
     </>

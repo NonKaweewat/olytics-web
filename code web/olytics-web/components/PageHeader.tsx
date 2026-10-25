@@ -10,7 +10,7 @@ export default function PageHeader({
   stateLabel,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   options?: FilterOptions;
   /** Filters this page's KPI views support. */
   fields?: FilterField[];
@@ -20,7 +20,7 @@ export default function PageHeader({
     <div className="page-head">
       <div>
         <h1>{title}</h1>
-        <p>{subtitle}</p>
+        {subtitle && <p>{subtitle}</p>}
       </div>
       {options && fields.length > 0 && (
         <Suspense>

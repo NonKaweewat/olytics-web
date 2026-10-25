@@ -1,19 +1,11 @@
 import "server-only";
-import {
-  AthenaClient,
-  GetQueryExecutionCommand,
-  GetQueryResultsCommand,
-  StartQueryExecutionCommand,
-} from "@aws-sdk/client-athena";
 import { dataSource, query, schema } from "./db";
 import type { QueryRunResult } from "./types";
 
-// UC-03: run the same SQL on Athena (reads S3 Curated Zone via Glue Data Catalog)
-// and on Redshift, then compare elapsed time / data scanned.
-// Write `{db}.table` in SQL — it is replaced with ATHENA_DATABASE or REDSHIFT_SCHEMA.
+// UC-03: run read-only SQL against the dashboard warehouse.
+// Write `{db}.table` in SQL — it is replaced with REDSHIFT_SCHEMA.
 
-// Presets read the data team's KPI views (KPI.txt), so both engines answer the
-// same business question; Athena needs the same views in the Glue Data Catalog.
+// Presets read the data team's KPI views (KPI.txt).
 export const PRESETS: { id: string; label: string; sql: string }[] = [
   {
     id: "br01",
@@ -81,75 +73,13 @@ async function runRedshift(sql: string): Promise<QueryRunResult> {
   }
 }
 
-async function runAthena(sql: string): Promise<QueryRunResult> {
-  const db = process.env.ATHENA_DATABASE ?? "olytics_curated";
-  // Athena uses DOUBLE, not DOUBLE PRECISION.
-  const q = sql.replaceAll("{db}", db).replace(/DOUBLE PRECISION/gi, "DOUBLE");
-  // Credentials: EC2 instance profile (LabRole) or AWS_* env vars from Learner Lab.
-  const client = new AthenaClient({ region: process.env.AWS_REGION ?? "us-east-1" });
-  const start = performance.now();
-  try {
-    const { QueryExecutionId } = await client.send(
-      new StartQueryExecutionCommand({
-        QueryString: q,
-        QueryExecutionContext: { Database: db },
-        WorkGroup: process.env.ATHENA_WORKGROUP ?? "primary",
-        ResultConfiguration: process.env.ATHENA_OUTPUT_LOCATION
-          ? { OutputLocation: process.env.ATHENA_OUTPUT_LOCATION }
-          : undefined,
-      }),
-    );
-    let state = "QUEUED";
-    let stats: { EngineExecutionTimeInMillis?: number; DataScannedInBytes?: number } | undefined;
-    let reason: string | undefined;
-    while (state === "QUEUED" || state === "RUNNING") {
-      await new Promise((r) => setTimeout(r, 400));
-      const ex = await client.send(new GetQueryExecutionCommand({ QueryExecutionId }));
-      state = ex.QueryExecution?.Status?.State ?? "FAILED";
-      stats = ex.QueryExecution?.Statistics;
-      reason = ex.QueryExecution?.Status?.StateChangeReason;
-      if (performance.now() - start > 60_000) throw new Error("Athena query timed out (60s)");
-    }
-    if (state !== "SUCCEEDED") throw new Error(reason ?? `Athena query ${state}`);
-    const res = await client.send(new GetQueryResultsCommand({ QueryExecutionId, MaxResults: MAX_ROWS + 1 }));
-    const all = res.ResultSet?.Rows ?? [];
-    const columns = (all[0]?.Data ?? []).map((d) => d.VarCharValue ?? "");
-    const rows = all.slice(1).map((r) => (r.Data ?? []).map((d) => d.VarCharValue ?? null));
-    return {
-      engine: "athena",
-      ok: true,
-      // Engine time excludes polling overhead — closer to a fair comparison.
-      elapsedMs: stats?.EngineExecutionTimeInMillis ?? performance.now() - start,
-      dataScannedBytes: stats?.DataScannedInBytes,
-      rowCount: rows.length,
-      columns,
-      rows,
-    };
-  } catch (e) {
-    return { engine: "athena", ok: false, elapsedMs: performance.now() - start, error: (e as Error).message };
-  }
-}
-
-/**
- * Mock mode: the SQL really runs on the in-memory mock warehouse (so it is
- * checked), but there is no Athena — its timing and data scanned are simulated.
- */
+/** Mock mode runs the same query against the in-memory warehouse. */
 async function mockRun(sql: string): Promise<QueryRunResult[]> {
   const real = await runRedshift(sql);
-  const athena: QueryRunResult = {
-    ...real,
-    engine: "athena",
-    simulated: true,
-    elapsedMs: real.ok ? 800 + real.elapsedMs * 4 : real.elapsedMs,
-    dataScannedBytes: real.ok ? 3_500_000 + sql.length * 900 : undefined,
-  };
-  return [athena, { ...real, simulated: true }];
+  return [{ ...real, simulated: true }];
 }
 
-export async function runBoth(sql: string): Promise<QueryRunResult[]> {
+export async function runQuery(sql: string): Promise<QueryRunResult[]> {
   if (dataSource() === "mock") return mockRun(sql);
-  // Sequential, so the two engines do not compete for the network/CPU on EC2.
-  const athena = await runAthena(sql);
-  const redshift = await runRedshift(sql);
-  return [athena, redshift];
+  return [await runRedshift(sql)];
 }
